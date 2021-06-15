@@ -7,11 +7,25 @@ from plone.app.testing import SITE_OWNER_PASSWORD
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
 from plone.app.testing import TEST_USER_PASSWORD
-from plone.testing.z2 import Browser
+from plone.testing.zope import Browser
 from zExceptions import Unauthorized
 
 import transaction
 import unittest
+
+
+def mock_ftw_validate_pass(auth):
+    pass
+
+
+def mock_ftw_validate_fail(auth):
+    raise ValueError("mock fail for ftw.upgrade authentication")
+
+
+def add_ftw_upgrade_header(browser):
+    browser.addHeader(
+        "x-ftw.upgrade-tempfile-auth", "dummy"
+    )
 
 
 class TestIntegration(unittest.TestCase):
@@ -24,6 +38,8 @@ class TestIntegration(unittest.TestCase):
         self.portal = self.layer["portal"]
         # Store value of PATCHED.
         self._orig_patched = patches.PATCHED
+        # store original ftw.upgrade validation method
+        self.orig_ftw = patches.validate_tempfile_authentication_header_value
 
     def tearDown(self):
         # Restore PATCHED value.  Might not matter, but seems cleaner.
@@ -33,6 +49,8 @@ class TestIntegration(unittest.TestCase):
         elif not self._orig_patched and patches.PATCHED:
             # It was not patched, but now it is, so unpatch.
             patches.unpatch_all()
+        # restore ftw.upgrade validation method
+        patches.validate_tempfile_authentication_header_value = self.orig_ftw
 
     def get_admin_browser(self):
         browser = Browser(self.app)
@@ -127,3 +145,57 @@ class TestIntegration(unittest.TestCase):
         # Contributor role is no longer available, so we have no options here:
         browser.open(self.portal.absolute_url())
         self.assertNotIn("Add new", browser.contents)
+
+    def test_drop_roles_false_upgrade_admin(self):
+        patches.unpatch_all()
+        browser = self.get_admin_browser()
+        add_ftw_upgrade_header(browser)
+        browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+    def test_drop_roles_true_upgrade_admin(self):
+        patches.patch_all()
+        # We mock that we are the system-upgrade user from ftw.upgrade.
+        # Login as Manager.
+        browser = self.get_admin_browser()
+        # Add a header that will convince ftw.upgrade (if installed)
+        # that its special user is authenticated.
+        # Normally it is not so easily convinced, but we will mock the function
+        # that does the check.
+        # Our patch should allow the Manager role then, even with DROP_ROLES=1.
+        add_ftw_upgrade_header(browser)
+
+        # At this point, the user is a standard Manager, and the role will be dropped.
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+        # Add a patch so our dummy ftw upgrade header will get checked
+        # and let the check fail.
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_fail
+        with self.assertRaises(ValueError):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+        # Add a patch so our dummy ftw upgrade header will get checked
+        # and let the check pass.  We should retain the Manager role then.
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_pass
+        browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+    def test_drop_roles_true_upgrade_anonymous(self):
+        patches.patch_all()
+        # This is mostly to see if we can catch a corner case where the user has no REQUEST attribute.
+        # Use an anonymous browser with the ftw upgrade header.
+        # Well, it doesn't trigger the problem I want, but I guess the test is fine.
+        browser = self.get_anonymous_browser()
+        add_ftw_upgrade_header(browser)
+
+        # Add a patch so our dummy ftw upgrade header will get checked
+        # and let the check fail.
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_fail
+        with self.assertRaises(ValueError):
+            browser.open(self.portal.absolute_url())
+
+        # Add a patch so our dummy ftw upgrade header will get checked
+        # and let the check pass.
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_pass
+        browser.open(self.portal.absolute_url())
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")

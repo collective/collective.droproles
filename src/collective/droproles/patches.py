@@ -31,10 +31,14 @@ PATCHED = False
 def _drop_roles(self, orig):
     if not orig:
         return orig
+    # Do the cheapest test first: see if some roles would be dropped.
+    new_result = set(orig).difference(DROPPED_ROLES)
+    if len(new_result) == len(orig):
+        # no change
+        return orig
+    # Drop some roles, unless this is a valid ftw.upgrade user.
     if self._is_upgrade_user():
         return orig
-    # Drop some roles.
-    new_result = set(orig).difference(DROPPED_ROLES)
     # Return the original type, usually a list.
     if isinstance(orig, tuple):
         return tuple(new_result)
@@ -52,7 +56,10 @@ def _is_upgrade_user(self):
     if validate_tempfile_authentication_header_value is None:
         # The ftw.upgrade package is not available, so this cannot be the upgrade user.
         return False
-    auth = self.REQUEST.getHeader("x-ftw.upgrade-tempfile-auth")
+    request = getattr(self, "REQUEST", None)
+    if request is None:
+        return False
+    auth = request.getHeader("x-ftw.upgrade-tempfile-auth")
     if not auth:
         return False
     # Validate the header.  This will raise a ValueError if something is wrong.
