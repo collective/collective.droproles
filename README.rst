@@ -217,6 +217,8 @@ the Manager role would be dropped, making the script useless.
 We have a patch for this that is active when our other patches are active.
 So: ``bin/upgrade`` should work just fine.
 
+Note: it will *not* work when you have enabled ``DROP_ALL_ROLES``.
+
 
 Support
 -------
