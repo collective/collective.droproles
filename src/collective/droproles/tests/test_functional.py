@@ -23,9 +23,7 @@ def mock_ftw_validate_fail(auth):
 
 
 def add_ftw_upgrade_header(browser):
-    browser.addHeader(
-        "x-ftw.upgrade-tempfile-auth", "dummy"
-    )
+    browser.addHeader("x-ftw.upgrade-tempfile-auth", "dummy")
 
 
 class TestIntegration(unittest.TestCase):
@@ -56,7 +54,8 @@ class TestIntegration(unittest.TestCase):
         browser = Browser(self.app)
         browser.handleErrors = False
         browser.addHeader(
-            "Authorization", "Basic {0}:{1}".format(SITE_OWNER_NAME, SITE_OWNER_PASSWORD)
+            "Authorization",
+            "Basic {0}:{1}".format(SITE_OWNER_NAME, SITE_OWNER_PASSWORD),
         )
         return browser
 

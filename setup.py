@@ -4,6 +4,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
+
 with open("README.rst") as myfile:
     readme = myfile.read()
 with open("CONTRIBUTORS.rst") as myfile:
@@ -11,9 +12,7 @@ with open("CONTRIBUTORS.rst") as myfile:
 with open("CHANGES.rst") as myfile:
     changes = myfile.read()
 
-long_description = "\n\n".join(
-    [readme, contributors, changes]
-)
+long_description = "\n\n".join([readme, contributors, changes])
 
 
 setup(

@@ -6,6 +6,7 @@ from Products.PluggableAuthService.PropertiedUser import PropertiedUser
 
 import logging
 
+
 try:
     from ftw.upgrade.jsonapi.utils import validate_tempfile_authentication_header_value
 except ImportError:
@@ -122,7 +123,6 @@ def unpatch_class(klass):
         setattr(klass, method_name, orig_method)
         delattr(klass, orig_name)
         logger.info("Unpatched class %s method %s.", klass, method_name)
-
 
 
 def patch_all():

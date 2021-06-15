@@ -6,7 +6,6 @@ import unittest
 
 
 class UtilsTestCase(unittest.TestCase):
-
     def setUp(self):
         self.orig_drop_roles_env = None
         if utils.DROP_ROLES_ENV in os.environ:

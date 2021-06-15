@@ -20,10 +20,12 @@ COLLECTIVE_DROPROLES_FIXTURE = CollectiveDropRolesLayer()
 
 
 COLLECTIVE_DROPROLES_INTEGRATION_TESTING = IntegrationTesting(
-    bases=(COLLECTIVE_DROPROLES_FIXTURE,), name="CollectiveDropRolesLayer:IntegrationTesting"
+    bases=(COLLECTIVE_DROPROLES_FIXTURE,),
+    name="CollectiveDropRolesLayer:IntegrationTesting",
 )
 
 
 COLLECTIVE_DROPROLES_FUNCTIONAL_TESTING = FunctionalTesting(
-    bases=(COLLECTIVE_DROPROLES_FIXTURE,), name="CollectiveDropRolesLayer:FunctionalTesting"
+    bases=(COLLECTIVE_DROPROLES_FIXTURE,),
+    name="CollectiveDropRolesLayer:FunctionalTesting",
 )
