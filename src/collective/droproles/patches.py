@@ -85,6 +85,9 @@ def allowed(self, object, object_roles=None):
     """Check whether the user has access to object. The user must
     have one of the roles in object_roles to allow access."""
     # logger.info("%s.allowed: %s" % (self.__class__.__name__, object_roles))
+    # Dropping roles here should have no effect, except a speedup:
+    # it is useless to let this code check for a Manager role
+    # when we know we have dropped the Manager role from the user.
     object_roles = self._drop_roles(object_roles)
     return self._orig_allowed(object, object_roles=object_roles)
 
