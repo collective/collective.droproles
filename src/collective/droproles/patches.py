@@ -1,6 +1,10 @@
-import logging
-import os
+from .utils import read_drop_roles_from_env
+from AccessControl.users import BasicUser
+from AccessControl.users import SimpleUser
+from Products.PlonePAS.plugins.ufactory import PloneUser
+from Products.PluggableAuthService.PropertiedUser import PropertiedUser
 
+import logging
 
 try:
     from ftw.upgrade.jsonapi.utils import validate_tempfile_authentication_header_value
@@ -8,36 +12,20 @@ except ImportError:
     validate_tempfile_authentication_header_value = None
 
 logger = logging.getLogger(__name__)
-# Environment variable to determine if we drop roles.
-DROP_ROLES_ENV = "DROP_ROLES"
 # Drop these roles:
 DROPPED_ROLES = set(
     ["Manager", "Site Administrator", "Editor", "Reviewer", "Contributor"]
 )
-
-
-def read_drop_roles_from_env():
-    # By default, we do not drop roles.
-    drop = os.getenv(DROP_ROLES_ENV, False)
-    if not drop:
-        return False
-    try:
-        drop = int(drop)
-    except (ValueError, TypeError, AttributeError):
-        logger.warning("Ignored non-integer %s environment variable.", DROP_ROLES_ENV)
-        return False
-    if drop == 0:
-        logger.info(
-            "%s environment variable set to zero. Will NOT drop roles.",
-            DROP_ROLES_ENV,
-        )
-        return False
-    logger.info(
-        "%s environment variable set to %d. Will drop roles.",
-        DROP_ROLES_ENV,
-        drop,
-    )
-    return True
+# We patch these classes:
+USER_CLASSES = [
+    BasicUser,
+    SimpleUser,
+    PropertiedUser,
+    PloneUser,
+]
+# Did we already patch?
+# This is to avoid patching twice.  Also helps in tests, where we unpatch.
+PATCHED = False
 
 
 def _drop_roles(self, orig):
@@ -118,19 +106,11 @@ def patch():
     - If this works in practice, we should put this into a separate package,
       to use in all KNMP Plone Sites.
     """
-    from AccessControl.users import BasicUser
-    from AccessControl.users import SimpleUser
-    from Products.PluggableAuthService.PropertiedUser import PropertiedUser
-    from Products.PlonePAS.plugins.ufactory import PloneUser
-
-    klasses = (
-        BasicUser,
-        SimpleUser,
-        PropertiedUser,
-        PloneUser,
-    )
-
-    for klass in klasses:
+    global PATCHED
+    if PATCHED:
+        logger.warning("Already patched.")
+        return
+    for klass in USER_CLASSES:
         for method_name in ("_drop_roles", "_is_upgrade_user"):
             patched_method = globals()[method_name]
             setattr(klass, method_name, patched_method)
@@ -144,6 +124,33 @@ def patch():
             setattr(klass, orig_name, orig_method)
             setattr(klass, method_name, patched_method)
             logger.info("Patched class %s method %s.", klass, method_name)
+    PATCHED = True
+
+
+def unpatch():
+    """Unpatch getRolesInContext for various user implementations.
+
+    Undo what we did in the patch method.
+    """
+    global PATCHED
+    if not PATCHED:
+        logger.warning("Not patched, so unpatch not needed.")
+        return
+    for klass in USER_CLASSES:
+        for method_name in ("_drop_roles", "_is_upgrade_user"):
+            if method_name not in klass.__dict__:
+                continue
+            delattr(klass, method_name)
+        for method_name in ("getRoles", "getRolesInContext", "allowed"):
+            orig_name = "_orig_{}".format(method_name)
+            if orig_name not in klass.__dict__:
+                logger.info("Class %s has no method %s.", klass, orig_name)
+                continue
+            orig_method = getattr(klass, orig_name)
+            setattr(klass, method_name, orig_method)
+            delattr(klass, orig_name)
+            logger.info("Unpatched class %s method %s.", klass, method_name)
+    PATCHED = False
 
 
 # Do we want to drop roles?

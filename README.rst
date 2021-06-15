@@ -9,6 +9,11 @@ This is a monkey patch for PAS (``PluggableAuthService``).
 It drops roles like Manager or Editor on Plone Sites.
 An Editor can still login, but only has the Member and Authenticated roles.
 
+It differs from `collective.denyroles <https://github.com/collective/collective.denyroles/>`_
+which completely denies access to someone with one of these roles: they cannot login.
+This login failure may be confusing.
+I want to move the sites where I used this, over to the newer ``collective.droproles``.
+
 
 Features
 --------
@@ -46,6 +51,35 @@ Problems:
 
 This package gives you the option to treat all users as having at most the Member or Authenticated roles.
 A Manager can login, but cannot go to the Plone overview controlpanel.
+
+
+User classes
+------------
+
+The following classes are patched::
+
+    AccessControl.users.BasicUser
+    AccessControl.users.SimpleUser
+    Products.PlonePAS.plugins.ufactory.PloneUser
+    Products.PluggableAuthService.PropertiedUser.PropertiedUser
+
+This covers standard Plone.
+I have **not** tested with users coming from other sources, like LDAP.
+It might work out of the box though.
+
+
+Dropped roles
+-------------
+
+The following roles are dropped::
+
+    Manager
+    Site Administrator
+    Editor
+    Reviewer
+    Contributor
+
+If you have other roles that you want to drop, you may need to add a patch.
 
 
 Installation
