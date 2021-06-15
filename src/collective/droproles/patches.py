@@ -82,7 +82,40 @@ def allowed(self, object, object_roles=None):
     return self._orig_allowed(object, object_roles=object_roles)
 
 
-def patch():
+def patch_class(klass):
+    for method_name in ("_drop_roles", "_is_upgrade_user"):
+        patched_method = globals()[method_name]
+        setattr(klass, method_name, patched_method)
+    for method_name in ("getRoles", "getRolesInContext", "allowed"):
+        if method_name not in klass.__dict__:
+            logger.info("Class %s has no method %s.", klass, method_name)
+            continue
+        orig_method = getattr(klass, method_name)
+        patched_method = globals()[method_name]
+        orig_name = "_orig_{}".format(method_name)
+        setattr(klass, orig_name, orig_method)
+        setattr(klass, method_name, patched_method)
+        logger.info("Patched class %s method %s.", klass, method_name)
+
+
+def unpatch_class(klass):
+    for method_name in ("_drop_roles", "_is_upgrade_user"):
+        if method_name not in klass.__dict__:
+            continue
+        delattr(klass, method_name)
+    for method_name in ("getRoles", "getRolesInContext", "allowed"):
+        orig_name = "_orig_{}".format(method_name)
+        if orig_name not in klass.__dict__:
+            logger.info("Class %s has no method %s.", klass, orig_name)
+            continue
+        orig_method = getattr(klass, orig_name)
+        setattr(klass, method_name, orig_method)
+        delattr(klass, orig_name)
+        logger.info("Unpatched class %s method %s.", klass, method_name)
+
+
+
+def patch_all():
     """Patch getRolesInContext for various user implementations.
 
     Luckily all methods of this name can be replaced by a single method
@@ -111,23 +144,11 @@ def patch():
         logger.warning("Already patched.")
         return
     for klass in USER_CLASSES:
-        for method_name in ("_drop_roles", "_is_upgrade_user"):
-            patched_method = globals()[method_name]
-            setattr(klass, method_name, patched_method)
-        for method_name in ("getRoles", "getRolesInContext", "allowed"):
-            if method_name not in klass.__dict__:
-                logger.info("Class %s has no method %s.", klass, method_name)
-                continue
-            orig_method = getattr(klass, method_name)
-            patched_method = globals()[method_name]
-            orig_name = "_orig_{}".format(method_name)
-            setattr(klass, orig_name, orig_method)
-            setattr(klass, method_name, patched_method)
-            logger.info("Patched class %s method %s.", klass, method_name)
+        patch_class(klass)
     PATCHED = True
 
 
-def unpatch():
+def unpatch_all():
     """Unpatch getRolesInContext for various user implementations.
 
     Undo what we did in the patch method.
@@ -137,19 +158,7 @@ def unpatch():
         logger.warning("Not patched, so unpatch not needed.")
         return
     for klass in USER_CLASSES:
-        for method_name in ("_drop_roles", "_is_upgrade_user"):
-            if method_name not in klass.__dict__:
-                continue
-            delattr(klass, method_name)
-        for method_name in ("getRoles", "getRolesInContext", "allowed"):
-            orig_name = "_orig_{}".format(method_name)
-            if orig_name not in klass.__dict__:
-                logger.info("Class %s has no method %s.", klass, orig_name)
-                continue
-            orig_method = getattr(klass, orig_name)
-            setattr(klass, method_name, orig_method)
-            delattr(klass, orig_name)
-            logger.info("Unpatched class %s method %s.", klass, method_name)
+        unpatch_class(klass)
     PATCHED = False
 
 
@@ -157,4 +166,4 @@ def unpatch():
 DROP_ROLES = read_drop_roles_from_env()
 if DROP_ROLES:
     # Apply the patches.
-    patch()
+    patch_all()

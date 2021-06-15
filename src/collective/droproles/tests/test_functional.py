@@ -29,19 +29,19 @@ class TestIntegration(unittest.TestCase):
         # Restore PATCHED value.  Might not matter, but seems cleaner.
         if self._orig_patched and not patches.PATCHED:
             # It was patched, but not anymore, so repatch.
-            patches.patch()
+            patches.patch_all()
         elif not self._orig_patched and patches.PATCHED:
             # It was not patched, but now it is, so unpatch.
-            patches.unpatch()
+            patches.unpatch_all()
 
     def test_drop_roles_false(self):
-        patches.unpatch()
+        patches.unpatch_all()
         self.browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
         # open("/tmp/test.html", "w").write(self.browser.contents)
         self.assertFalse("Log in" in self.browser.contents)
         self.assertTrue("Site Setup" in self.browser.contents)
 
     def test_drop_roles_true(self):
-        patches.patch()
+        patches.patch_all()
         with self.assertRaises(Unauthorized):
             self.browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
