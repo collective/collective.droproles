@@ -64,8 +64,10 @@ The following classes are patched::
     Products.PluggableAuthService.PropertiedUser.PropertiedUser
 
 This covers standard Plone.
+
 I have **not** tested with users coming from other sources, like LDAP.
 It might work out of the box though.
+If it does not work, and your LDAP users have a special class, try calling ``patch_class(your_ldap_class)``.
 
 
 Dropped roles
@@ -79,7 +81,7 @@ The following roles are dropped::
     Reviewer
     Contributor
 
-If you have other roles that you want to drop, you may need to add a patch.
+If you have other roles that you want to drop, you may need to add it to the set of ``USER_CLASSES`` via a monkey patch.
 
 
 Installation
