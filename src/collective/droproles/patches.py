@@ -95,14 +95,14 @@ def patch_class(klass):
         setattr(klass, method_name, patched_method)
     for method_name in ("getRoles", "getRolesInContext", "allowed"):
         if method_name not in klass.__dict__:
-            logger.info("Class %s has no method %s.", klass, method_name)
+            logger.debug("Class %s has no method %s.", klass, method_name)
             continue
         orig_method = getattr(klass, method_name)
         patched_method = globals()[method_name]
         orig_name = "_orig_{}".format(method_name)
         setattr(klass, orig_name, orig_method)
         setattr(klass, method_name, patched_method)
-        logger.info("Patched class %s method %s.", klass, method_name)
+        logger.debug("Patched class %s method %s.", klass, method_name)
 
 
 def unpatch_class(klass):
