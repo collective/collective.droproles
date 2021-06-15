@@ -1,0 +1,4 @@
+graft src/collective
+include *.GPL
+include *.rst
+global-exclude *.pyc
