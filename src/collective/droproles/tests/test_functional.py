@@ -81,7 +81,14 @@ class TestIntegration(unittest.TestCase):
 
     def test_drop_roles_true_admin(self):
         patches.patch_all()
-        browser = self.get_anonymous_browser()
+        browser = self.get_admin_browser()
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+    def test_drop_all_roles_admin(self):
+        patches.unpatch_all()
+        patches.patch_all(anonymous=True)
+        browser = self.get_admin_browser()
         with self.assertRaises(Unauthorized):
             browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
 
@@ -95,6 +102,15 @@ class TestIntegration(unittest.TestCase):
 
     def test_drop_roles_true_anonymous(self):
         patches.patch_all()
+        browser = self.get_anonymous_browser()
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@personal-preferences")
+
+    def test_drop_all_roles_anonymous(self):
+        patches.unpatch_all()
+        patches.patch_all(anonymous=True)
         browser = self.get_anonymous_browser()
         with self.assertRaises(Unauthorized):
             browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
@@ -116,7 +132,20 @@ class TestIntegration(unittest.TestCase):
             browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
         # Member role is still available, so we can view this page:
         browser.open(self.portal.absolute_url() + "/@@personal-preferences")
-        self.assertIn(TEST_USER_NAME, browser.contents)
+        self.assertIn(TEST_USER_ID, browser.contents)
+
+    def test_drop_all_roles_member(self):
+        patches.unpatch_all()
+        patches.patch_all(anonymous=True)
+        browser = self.get_member_browser()
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+        # Member role is no longer available, so we can not view this page:
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@personal-preferences")
+        # We can still view the homepage, and are somewhat authenticated.
+        browser.open(self.portal.absolute_url())
+        self.assertIn(TEST_USER_ID, browser.contents)
 
     def test_drop_roles_false_contributor(self):
         patches.unpatch_all()
@@ -141,6 +170,20 @@ class TestIntegration(unittest.TestCase):
             browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
         # Member role is still available, so we can view this page:
         browser.open(self.portal.absolute_url() + "/@@personal-preferences")
+        # Contributor role is no longer available, so we have no options here:
+        browser.open(self.portal.absolute_url())
+        self.assertNotIn("Add new", browser.contents)
+
+    def test_drop_all_roles_contributor(self):
+        patches.unpatch_all()
+        patches.patch_all(anonymous=True)
+        setRoles(self.portal, TEST_USER_ID, ["Contributor"])
+        transaction.commit()
+        browser = self.get_member_browser()
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@personal-preferences")
         # Contributor role is no longer available, so we have no options here:
         browser.open(self.portal.absolute_url())
         self.assertNotIn("Add new", browser.contents)
@@ -177,6 +220,23 @@ class TestIntegration(unittest.TestCase):
         # and let the check pass.  We should retain the Manager role then.
         patches.validate_tempfile_authentication_header_value = mock_ftw_validate_pass
         browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+    def test_drop_all_roles_upgrade_admin(self):
+        patches.unpatch_all()
+        patches.patch_all(anonymous=True)
+        browser = self.get_admin_browser()
+        add_ftw_upgrade_header(browser)
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+
+        # The ftw upgrade validation code will never get called
+        # when we drop all roles.  Try patching it anyway.
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_fail
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
+        patches.validate_tempfile_authentication_header_value = mock_ftw_validate_pass
+        with self.assertRaises(Unauthorized):
+            browser.open(self.portal.absolute_url() + "/@@overview-controlpanel")
 
     def test_drop_roles_true_upgrade_anonymous(self):
         patches.patch_all()

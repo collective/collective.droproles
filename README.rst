@@ -83,6 +83,8 @@ The following roles are dropped::
 
 If you have other roles that you want to drop, you may need to add it to the set of ``USER_CLASSES`` via a monkey patch.
 
+See also the `Dropping all roles`_ section.
+
 
 Installation
 ------------
@@ -137,6 +139,29 @@ And when they accidentally login on the anonymous environment, they will be trea
 
 Technically, ``DROP_ROLES 0`` does nothing, because it is the default.
 But it may be good to be specific.
+
+
+Dropping all roles
+------------------
+
+If you want to drop **all** roles, you can use the environment variable ``DROP_ALL_ROLES``::
+
+    [instance]
+    recipe = plone.recipe.zope2instance
+    environment-vars =
+        DROP_ALL_ROLES 1
+
+In this case the ``DROP_ROLES`` environment variable is no longer checked.
+
+With ``DROP_ALL_ROLES`` we change the patches:
+
+- ``getRoles`` and ``getRolesInContext`` always return a list with a single entry: ``Anonymous``.
+- The ``allowed`` method returns True when the required object roles are None or contain Anonymous, otherwise it returns False.
+
+You can still login, and the pages will show your name, but you basically cannot make any changes.
+Probably you can fill in a form with ``collective.easyform``, but that should be about the only thing you can do that makes a change to the database.
+
+That would be the use case: prevent all (or most) changes to the database.
 
 
 Suggested buildout usage

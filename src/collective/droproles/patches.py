@@ -1,3 +1,4 @@
+from .utils import read_drop_all_roles_from_env
 from .utils import read_drop_roles_from_env
 from AccessControl.users import BasicUser
 from AccessControl.users import SimpleUser
@@ -93,16 +94,41 @@ def allowed(self, object, object_roles=None):
     return self._orig_allowed(object, object_roles=object_roles)
 
 
-def patch_class(klass):
-    for method_name in ("_drop_roles", "_is_upgrade_user"):
-        patched_method = globals()[method_name]
-        setattr(klass, method_name, patched_method)
+def getRolesAnonymous(self):
+    """Force Anonymous as only global role assigned to the user."""
+    return ["Anonymous"]
+
+
+def getRolesInContextAnonymous(self, object):
+    """Force Anonymous as only global+local role assigned to the user."""
+    return ["Anonymous"]
+
+
+def allowedAnonymous(self, object, object_roles=None):
+    """Check whether the user has access to object. The user must
+    have one of the roles in object_roles to allow access.
+
+    Force to only allow access if Anonymous is in the object roles.
+    """
+    if object_roles is None or "Anonymous" in object_roles:
+        return 1
+    return 0
+
+
+def patch_class(klass, anonymous=False):
+    if not anonymous:
+        for method_name in ("_drop_roles", "_is_upgrade_user"):
+            patched_method = globals()[method_name]
+            setattr(klass, method_name, patched_method)
     for method_name in ("getRoles", "getRolesInContext", "allowed"):
         if method_name not in klass.__dict__:
             logger.debug("Class %s has no method %s.", klass, method_name)
             continue
         orig_method = getattr(klass, method_name)
-        patched_method = globals()[method_name]
+        if anonymous:
+            patched_method = globals()[method_name + "Anonymous"]
+        else:
+            patched_method = globals()[method_name]
         orig_name = "_orig_{}".format(method_name)
         setattr(klass, orig_name, orig_method)
         setattr(klass, method_name, patched_method)
@@ -110,6 +136,7 @@ def patch_class(klass):
 
 
 def unpatch_class(klass):
+    # Note: no anonymous variant needed.
     for method_name in ("_drop_roles", "_is_upgrade_user"):
         if method_name not in klass.__dict__:
             continue
@@ -125,7 +152,7 @@ def unpatch_class(klass):
         logger.info("Unpatched class %s method %s.", klass, method_name)
 
 
-def patch_all():
+def patch_all(anonymous=False):
     """Patch getRolesInContext for various user implementations.
 
     Luckily all methods of this name can be replaced by a single method
@@ -146,15 +173,16 @@ def patch_all():
 
     - For Plone Groups, getRolesInContext is always empty.
     - This handles the standard users, not users from LDAP or some SSO thingie.
-    - If this works in practice, we should put this into a separate package,
-      to use in all KNMP Plone Sites.
+
+    If anonymous is True: we patch the methods with versions that only grant
+    anonymous access.
     """
     global PATCHED
     if PATCHED:
         logger.warning("Already patched.")
         return
     for klass in USER_CLASSES:
-        patch_class(klass)
+        patch_class(klass, anonymous=anonymous)
     PATCHED = True
 
 
@@ -173,7 +201,10 @@ def unpatch_all():
 
 
 # Do we want to drop roles?
-DROP_ROLES = read_drop_roles_from_env()
-if DROP_ROLES:
-    # Apply the patches.
+if read_drop_all_roles_from_env():
+    # Drop ALL roles, effectively making users anonymous,
+    # although they can still login.
+    patch_all(anonymous=True)
+elif read_drop_roles_from_env():
+    # Drop the standard roles.
     patch_all()
