@@ -2,8 +2,8 @@ Changelog
 =========
 
 
-1.0.0b2 (unreleased)
---------------------
+1.0.0 (2021-08-24)
+------------------
 
 - Seems to work well, so make a final release.
   [maurits]
